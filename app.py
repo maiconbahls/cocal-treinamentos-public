@@ -103,41 +103,36 @@ apply_styles('fundo.png')
 st.markdown('<h1><span class="cocal-green">Cocal</span> Treinamentos</h1>', unsafe_allow_html=True)
 st.markdown('---')
 
-# --- 4. UPLOAD SECTION ---
-st.markdown('<h2>Atualizar Base</h2>', unsafe_allow_html=True)
-st.markdown('Upload de nova base (Excel):')
-
-uploaded_file = st.file_uploader(
-    "Drag and drop file here",
-    type=['xls', 'xlsx'],
-    label_visibility="collapsed"
-)
-
-data = None
-
-if uploaded_file is not None:
+# --- 4. LOAD DATA FROM UPLOADED FILES ---
+@st.cache_data
+def load_data_from_folder():
+    """Carrega o primeiro arquivo Excel encontrado na pasta"""
     try:
-        data = pd.read_excel(uploaded_file, sheet_name=0)
-        st.success("Board atualizado!")
-        st.info(f"Registros carregados: {len(data)}")
+        # Procurar por arquivos Excel na pasta atual
+        import glob
+        xls_files = glob.glob('*.xls') + glob.glob('*.xlsx')
         
-        if st.button("Aplicar Agora", key="apply_button"):
-            st.session_state['data_loaded'] = True
-            st.session_state['dataframe'] = data
+        if xls_files:
+            # Usar o primeiro arquivo encontrado
+            arquivo = xls_files[0]
+            data = pd.read_excel(arquivo, sheet_name=0)
+            return data, arquivo
     except Exception as e:
         st.error(f"Erro ao carregar arquivo: {str(e)}")
-        data = None
+    
+    return None, None
 
-# Use session data if available
-if 'dataframe' in st.session_state and st.session_state.get('data_loaded'):
-    data = st.session_state['dataframe']
+# Tentar carregar dados
+data, arquivo_carregado = load_data_from_folder()
 
 if data is not None and len(data) > 0:
-    st.markdown('---')
     st.markdown('<h2>Dashboard de Treinamentos</h2>', unsafe_allow_html=True)
     
     try:
         data_clean = data.copy()
+        
+        # Remove colunas duplicadas
+        data_clean = data_clean.loc[:, ~data_clean.columns.duplicated()]
         
         # Rename columns if needed
         col_mapping = {}
@@ -145,13 +140,13 @@ if data is not None and len(data) > 0:
             col_lower = col.lower().strip()
             if 'data' in col_lower:
                 col_mapping[col] = 'Data'
-            elif 'instrutor' in col_lower:
+            elif 'instrutor' in col_lower or 'efetuado' in col_lower:
                 col_mapping[col] = 'Instrutor'
             elif 'evento' in col_lower or 'treinamento' in col_lower:
                 col_mapping[col] = 'Evento'
             elif 'participante' in col_lower:
                 col_mapping[col] = 'Participantes'
-            elif 'efaz' in col_lower:
+            elif 'efaz' in col_lower or 'efetuado' in col_lower:
                 col_mapping[col] = 'Efaz'
         
         data_clean = data_clean.rename(columns=col_mapping)
@@ -161,13 +156,27 @@ if data is not None and len(data) > 0:
         with col1:
             st.metric("Total de Treinamentos", len(data_clean))
         with col2:
-            total_part = int(data_clean['Participantes'].sum()) if 'Participantes' in data_clean.columns else 0
+            total_part = 0
+            for col in ['Participantes', 'participante']:
+                if col in data_clean.columns:
+                    try:
+                        total_part = int(data_clean[col].sum())
+                        break
+                    except:
+                        pass
             st.metric("Total de Participantes", total_part)
         with col3:
-            total_inst = data_clean['Instrutor'].nunique() if 'Instrutor' in data_clean.columns else 0
+            total_inst = 0
+            if 'Instrutor' in data_clean.columns:
+                total_inst = data_clean['Instrutor'].nunique()
             st.metric("Total de Instrutores", total_inst)
         with col4:
-            total_efaz = int(data_clean['Efaz'].sum()) if 'Efaz' in data_clean.columns else 0
+            total_efaz = 0
+            if 'Efaz' in data_clean.columns:
+                try:
+                    total_efaz = int(data_clean['Efaz'].sum())
+                except:
+                    total_efaz = 0
             st.metric("Efaz Finalizado", total_efaz)
         
         st.markdown('---')
@@ -178,8 +187,10 @@ if data is not None and len(data) > 0:
         with col1:
             st.markdown('#### Treinamentos por Instrutor')
             if 'Instrutor' in data_clean.columns:
+                instrutores = data_clean['Instrutor'].value_counts().reset_index()
+                instrutores.columns = ['Instrutor', 'Count']
                 fig_instrutor = px.bar(
-                    data_clean.groupby('Instrutor').size().reset_index(name='Count'),
+                    instrutores,
                     x='Instrutor',
                     y='Count',
                     color='Count',
@@ -190,9 +201,10 @@ if data is not None and len(data) > 0:
         
         with col2:
             st.markdown('#### Participantes por Evento')
-            if 'Evento' in data_clean.columns and 'Participantes' in data_clean.columns:
+            if 'Evento' in data_clean.columns:
+                eventos = data_clean.groupby('Evento')['Participantes'].sum().reset_index() if 'Participantes' in data_clean.columns else data_clean.groupby('Evento').size().reset_index(name='Participantes')
                 fig_evento = px.pie(
-                    data_clean.groupby('Evento')['Participantes'].sum().reset_index(),
+                    eventos,
                     values='Participantes',
                     names='Evento',
                     color_discrete_sequence=px.colors.sequential.Greens
@@ -210,4 +222,15 @@ if data is not None and len(data) > 0:
         st.error(f"Erro ao processar dados: {str(e)}")
         st.dataframe(data, use_container_width=True)
 else:
-    st.info("Carregue um arquivo Excel para visualizar o dashboard")
+    st.info("Nenhum arquivo Excel encontrado. Faça upload de um arquivo para visualizar o dashboard.")
+    
+    # Upload fallback
+    st.markdown('<h2>Atualizar Base</h2>', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader(
+        "Selecione um arquivo Excel",
+        type=['xls', 'xlsx'],
+        label_visibility="collapsed"
+    )
+    
+    if uploaded_file is not None:
+        st.rerun()
