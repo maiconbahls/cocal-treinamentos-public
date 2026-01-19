@@ -4,7 +4,7 @@ import plotly.express as px
 from datetime import datetime, date
 import base64
 import os
-
+import io
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -14,242 +14,209 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-
 # --- 2. LÓGICA DE IMAGEM DE FUNDO ---
 def get_base64(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
     return base64.b64encode(data).decode()
 
-
 def apply_styles(file_path):
     bg_style = ""
     if os.path.exists(file_path):
         img_base64 = get_base64(file_path)
         bg_style = f"""
-            background-image: linear-gradient(rgba(10, 14, 18, 0.8), rgba(10, 14, 18, 0.8)), 
-            url("data:image/png;base64,{img_base64}");
-            background-size: cover;
-            background-attachment: fixed;
+        background-image: linear-gradient(rgba(10, 14, 18, 0.8), rgba(10, 14, 18, 0.8)), url("data:image/png;base64,{img_base64}");
+        background-size: cover;
+        background-attachment: fixed;
         """
     else:
         bg_style = "background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);"
-
-
+    
     st.markdown(f"""
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        
-        .stApp {{ {bg_style} }}
-        
-        h1, h2, h3, h4, h5, p, label {{
-            color: #ffffff !important;
-            font-family: 'Inter', sans-serif !important;
-        }}
-        
-        /* DESTAQUE VERDE COCAL */
-        .cocal-green {{
-            color: #9DC63A !important;
-            font-weight: 800;
-        }}
-
-
-        /* --- CARDS DE MÉTRICAS --- */
-        [data-testid="stMetric"] {{
-            background: rgba(255, 255, 255, 0.05) !important;
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(157, 198, 58, 0.4) !important;
-            border-radius: 12px !important;
-            padding: 20px !important;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }}
-        [data-testid="stMetricValue"] {{ 
-            color: #9DC63A !important; 
-            font-weight: 700 !important; 
-        }}
-
-
-        /* --- TABELA TOTALMENTE TRANSPARENTE (GLASSMORPHISM) --- */
-        [data-testid="stDataFrame"], 
-        [data-testid="stDataFrame"] > div, 
-        [data-testid="stTable"] {{
-            background-color: transparent !important;
-        }}
-
-
-        [data-testid="stDataFrame"] [role="gridcell"] {{
-            background-color: rgba(255, 255, 255, 0.01) !important;
-            color: #ffffff !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-            backdrop-filter: blur(10px);
-        }}
-
-
-        [data-testid="stDataFrame"] [role="columnheader"] {{
-            background-color: rgba(157, 198, 58, 0.2) !important;
-            color: #9DC63A !important;
-            font-weight: 700 !important;
-            border-bottom: 2px solid rgba(157, 198, 58, 0.5) !important;
-        }}
-
-
-        /* --- INPUTS E CALENDÁRIO --- */
-        div[data-testid="stDateInput"] input {{
-            color: #ffffff !important;
-            background-color: rgba(45, 55, 72, 0.9) !important;
-            border: 1px solid #9DC63A !important;
-            border-radius: 8px !important;
-        }}
-        
-        .stSelectbox div[data-baseweb="select"], .stTextInput input {{
-            background-color: rgba(45, 55, 72, 0.9) !important;
-            color: white !important;
-            border: 1px solid rgba(157, 198, 58, 0.4) !important;
-        }}
-
-
-        .stButton>button {{
-            background: linear-gradient(90deg, #9DC63A, #7fb52a) !important;
-            color: #0f1419 !important;
-            font-weight: 700 !important;
-            border-radius: 8px !important;
-            height: 3rem;
-            width: 100%;
-            border: none !important;
-        }}
-        </style>
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    
+    .stApp {{
+    {bg_style}
+    }}
+    
+    h1, h2, h3, h4, h5, p, label {{
+    color: #ffffff !important;
+    font-family: 'Inter', sans-serif !important;
+    }}
+    
+    /* DESTAQUE VERDE COCAL */
+    .cocal-green {{
+    color: #9DC63A !important;
+    font-weight: 800;
+    }}
+    /* --- CARDS DE MÉTRICAS --- */
+    [data-testid="stMetric"] {{
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(157, 198, 58, 0.4) !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }}
+    [data-testid="stMetricValue"] {{ 
+    color: #9DC63A !important; 
+    font-weight: 700 !important; 
+    }}
+    /* --- TABELA TOTALMENTE TRANSPARENTE (GLASSMORPHISM) --- */
+    [data-testid="stDataFrame"], 
+    [data-testid="stDataFrame"] > div,
+    [data-testid="stTable"],
+    [data-testid="stTable"] > div {{
+    background: transparent !important;
+    }}
+    /* --- CONTAINER PARA TABELA --- */
+    .transparent-container {{
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(157, 198, 58, 0.2) !important;
+    border-radius: 8px !important;
+    padding: 15px !important;
+    }}
+    /* --- FILTROS DO STREAMLIT --- */
+    [data-testid="stSelectbox"],
+    [data-testid="stMultiSelect"],
+    [data-testid="stTextInput"],
+    [data-testid="stNumberInput"],
+    [data-testid="stDateInput"] {{
+    background: rgba(255, 255, 255, 0.05) !important;
+    }}
+    input, select, textarea {{
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(157, 198, 58, 0.3) !important;
+    color: #ffffff !important;
+    }}
+    /* --- BOTÕES --- */
+    button {{
+    background-color: #9DC63A !important;
+    color: #0f1419 !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    }}
+    button:hover {{
+    background-color: #b5d855 !important;
+    }}
+    </style>
     """, unsafe_allow_html=True)
 
-
+# Aplicar estilos
 apply_styles('fundo.png')
 
-
-# --- 3. CARREGAMENTO DE DADOS ---
-@st.cache_data
-def load_data(file_source):
-    if not file_source: return None
-    try:
-        df = pd.read_excel(file_source)
-        df['Data e hora'] = pd.to_datetime(df['Data e hora'], format='%d/%m/%Y - %H:%M', errors='coerce')
-        df['Data'] = df['Data e hora'].dt.date
-        return df
-    except Exception:
-        return None
-
-
-if 'data_base' not in st.session_state:
-    st.session_state.data_base = load_data('RelatorioDeEventosAsis.xls')
-
-
-# --- 4. TÍTULO ATUALIZADO (SEM '|') ---
+# --- 3. TÍTULO DA PÁGINA ---
 st.markdown('<h1><span class="cocal-green">Cocal</span> Treinamentos</h1>', unsafe_allow_html=True)
+st.markdown('---')
 
+# --- 4. SEÇÃO DE UPLOAD ---
+st.markdown('<h2>⚙️ Atualizar Base</h2>', unsafe_allow_html=True)
+st.markdown('Upload de nova base (Excel):')
 
-if st.session_state.data_base is not None:
-    df = st.session_state.data_base
-    hoje = date(2026, 1, 19)
+uploaded_file = st.file_uploader(
+    "Drag and drop file here",
+    type=['xls', 'xlsx'],
+    label_visibility="collapsed"
+)
 
+data = None
 
-    # --- 5. FILTROS ---
-    with st.container():
-        col_btn, col_date, col_evento, col_inst, col_busca = st.columns([1, 2, 2, 2, 2])
+if uploaded_file is not None:
+    try:
+        # Ler o arquivo enviado
+        data = pd.read_excel(uploaded_file, sheet_name=0)
+        st.success("Board atualizado!")
+        st.info(f"Registros carregados: {len(data)}")
         
-        with col_btn:
-            st.write("")
-            st.write("")
-            if st.button("Filtrar Hoje"):
-                st.session_state.data_filtro = (hoje, hoje)
-                st.rerun()
+        if st.button("Aplicar Agora", key="apply_button"):
+            st.session_state['data_loaded'] = True
+            st.session_state['dataframe'] = data
+    except Exception as e:
+        st.error(f"Erro ao carregar arquivo: {str(e)}")
+        data = None
 
+# Usar dados da sessão se disponível
+if 'dataframe' in st.session_state and st.session_state.get('data_loaded'):
+    data = st.session_state['dataframe']
 
-        with col_date:
-            default_range = (df['Data'].min(), df['Data'].max())
-            data_range = st.date_input("Período:", 
-                                     value=st.session_state.get('data_filtro', default_range),
-                                     format="DD/MM/YYYY") 
-            
-        with col_evento:
-            sel_evento = st.selectbox("Evento:", ['Todos'] + sorted(df['Evento'].dropna().unique().tolist()))
-            
-        with col_inst:
-            sel_inst = st.selectbox("Instrutor:", ['Todos'] + sorted(df['Efetuado por'].dropna().unique().tolist()))
-            
-        with col_busca:
-            busca = st.text_input("🔎 Matrícula do Participante:")
-
-
-    # Filtragem
-    df_f = df.copy()
-    if isinstance(data_range, tuple) and len(data_range) == 2:
-        df_f = df_f[(df_f['Data'] >= data_range[0]) & (df_f['Data'] <= data_range[1])]
-    if sel_evento != 'Todos': df_f = df_f[df_f['Evento'] == sel_evento]
-    if sel_inst != 'Todos': df_f = df_f[df_f['Efetuado por'] == sel_inst]
-    if busca:
-        df_f = df_f[df_f['Pessoa'].str.contains(busca, case=False, na=False) | 
-                    df_f['Matrícula'].astype(str).str.contains(busca, na=False)]
-
-
-    # --- 6. MÉTRICAS ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Participações", len(df_f))
-    c2.metric("Colaboradores Únicos", df_f['Pessoa'].nunique())
-    c3.metric("Instrutores Ativos", df_f['Efetuado por'].nunique())
-
-
-    st.markdown("---")
-
-
-    # --- 7. GRÁFICOS ---
-    g1, g2 = st.columns(2)
-    with g1:
-        st.markdown('<h4>Distribuição de Treinamentos</h4>', unsafe_allow_html=True)
-        evt_count = df_f['Evento'].value_counts().reset_index().head(10)
-        fig_evt = px.bar(evt_count, x='count', y='Evento', orientation='h',
-                         color='count', color_continuous_scale='Greens', 
-                         template='plotly_dark', text_auto=True)
-        fig_evt.update_traces(textfont_size=12, textfont_color="white", textposition="outside")
-        fig_evt.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
-                              font=dict(color="white"), bargap=0.4, height=400)
-        st.plotly_chart(fig_evt, use_container_width=True)
-
-
-    with g2:
-        st.markdown('<h4>Participantes por Instrutor</h4>', unsafe_allow_html=True)
-        inst_count = df_f['Efetuado por'].value_counts().reset_index().head(10)
-        fig_inst = px.bar(inst_count, x='count', y='Efetuado por', orientation='h',
-                          color='count', color_continuous_scale='Greens', 
-                          template='plotly_dark', text_auto=True)
-        fig_inst.update_traces(textfont_size=12, textfont_color="white", textposition="outside")
-        fig_inst.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
-                               font=dict(color="white"), bargap=0.4, height=400)
-        st.plotly_chart(fig_inst, use_container_width=True)
-
-
-    # --- 8. TABELA TRANSPARENTE ---
-    st.markdown('<h4>Board de Participantes</h4>', unsafe_allow_html=True)
+if data is not None and len(data) > 0:
+    st.markdown('---')
+    st.markdown('<h2>📊 Dashboard de Treinamentos</h2>', unsafe_allow_html=True)
     
-    st.dataframe(
-        df_f[['Matrícula', 'Pessoa', 'Evento', 'Efetuado por', 'Data']].sort_values('Data', ascending=False),
-        use_container_width=True, 
-        height=800, 
-        hide_index=True,
-        column_config={
-            "Matrícula": st.column_config.TextColumn("Matrícula do Participante", width="medium"),
-            "Pessoa": st.column_config.TextColumn("Colaborador", width="large"),
-            "Evento": st.column_config.TextColumn("Treinamento", width="large"),
-            "Efetuado por": st.column_config.TextColumn("Instrutor", width="medium"),
-            "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY")
-        }
-    )
-
-
-# --- 9. GESTÃO DA BASE ---
-st.divider()
-st.markdown('### ⚙️ Atualizar Base')
-new_file = st.file_uploader("Upload de nova base (Excel):", type=['xls', 'xlsx'])
-if new_file:
-    st.session_state.data_base = load_data(new_file)
-    st.success("Board atualizado!")
-    if st.button("Aplicar Agora"):
-        st.rerun()
+    # Preparar dados
+    try:
+        # Garantir que as colunas existem
+        required_cols = ['Data', 'Instrutor', 'Evento', 'Participantes', 'Éfaz']
+        data_clean = data.copy()
+        
+        # Renomear colunas se necessário
+        col_mapping = {}
+        for col in data_clean.columns:
+            col_lower = col.lower().strip()
+            if 'data' in col_lower:
+                col_mapping[col] = 'Data'
+            elif 'instrutor' in col_lower:
+                col_mapping[col] = 'Instrutor'
+            elif 'evento' in col_lower or 'treinamento' in col_lower:
+                col_mapping[col] = 'Evento'
+            elif 'participante' in col_lower:
+                col_mapping[col] = 'Participantes'
+            elif 'éfaz' in col_lower or 'efaz' in col_lower:
+                col_mapping[col] = 'Éfaz'
+        
+        data_clean = data_clean.rename(columns=col_mapping)
+        
+        # MÉTRICAS
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total de Treinamentos", len(data_clean))
+        with col2:
+            st.metric("Total de Participantes", int(data_clean['Participantes'].sum()) if 'Participantes' in data_clean.columns else 0)
+        with col3:
+            st.metric("Total de Instrutores", data_clean['Instrutor'].nunique() if 'Instrutor' in data_clean.columns else 0)
+        with col4:
+            st.metric("Éfaz Finalizado", int(data_clean['Éfaz'].sum()) if 'Éfaz' in data_clean.columns else 0)
+        
+        st.markdown('---')
+        
+        # GRÁFICOS
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown('#### Treinamentos por Instrutor')
+            if 'Instrutor' in data_clean.columns:
+                fig_instrutor = px.bar(
+                    data_clean.groupby('Instrutor').size().reset_index(name='Count'),
+                    x='Instrutor',
+                    y='Count',
+                    color='Count',
+                    color_continuous_scale='Greens'
+                )
+                fig_instrutor.update_layout(showlegend=False, template="plotly_dark")
+                st.plotly_chart(fig_instrutor, use_container_width=True)
+        
+        with col2:
+            st.markdown('#### Participantes por Evento')
+            if 'Evento' in data_clean.columns and 'Participantes' in data_clean.columns:
+                fig_evento = px.pie(
+                    data_clean.groupby('Evento')['Participantes'].sum().reset_index(),
+                    values='Participantes',
+                    names='Evento',
+                    color_discrete_sequence=px.colors.sequential.Greens
+                )
+                fig_evento.update_layout(template="plotly_dark")
+                st.plotly_chart(fig_evento, use_container_width=True)
+        
+        st.markdown('---')
+        
+        # TABELA TRANSPARENTE
+        st.markdown('#### Detalhes de Treinamentos')
+        st.dataframe(data_clean, use_container_width=True, height=400)
+        
+    except Exception as e:
+        st.error(f"Erro ao processar dados: {str(e)}")
+        st.dataframe(data, use_container_width=True)
+else:
+    st.info("\ud83d\udcc4 Carregue um arquivo Excel para visualizar o dashboard")
