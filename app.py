@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -6,15 +7,15 @@ import base64
 import os
 import io
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA ---
+# --- 1. CONFIG PAGE ---
 st.set_page_config(
     page_title="Cocal Treinamentos",
-    page_icon="🌿",
+    page_icon="O",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. LÓGICA DE IMAGEM DE FUNDO ---
+# --- 2. BACKGROUND IMAGE LOGIC ---
 def get_base64(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
@@ -45,12 +46,11 @@ def apply_styles(file_path):
     font-family: 'Inter', sans-serif !important;
     }}
     
-    /* DESTAQUE VERDE COCAL */
     .cocal-green {{
     color: #9DC63A !important;
     font-weight: 800;
     }}
-    /* --- CARDS DE MÉTRICAS --- */
+    
     [data-testid="stMetric"] {{
     background: rgba(255, 255, 255, 0.05) !important;
     backdrop-filter: blur(15px);
@@ -59,38 +59,29 @@ def apply_styles(file_path):
     padding: 20px !important;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     }}
+    
     [data-testid="stMetricValue"] {{ 
     color: #9DC63A !important; 
     font-weight: 700 !important; 
     }}
-    /* --- TABELA TOTALMENTE TRANSPARENTE (GLASSMORPHISM) --- */
-    [data-testid="stDataFrame"], 
-    [data-testid="stDataFrame"] > div,
-    [data-testid="stTable"],
-    [data-testid="stTable"] > div {{
+    
+    [data-testid="stDataFrame"],
+    [data-testid="stTable"] {{
     background: transparent !important;
     }}
-    /* --- CONTAINER PARA TABELA --- */
-    .transparent-container {{
-    background: rgba(255, 255, 255, 0.03) !important;
-    border: 1px solid rgba(157, 198, 58, 0.2) !important;
-    border-radius: 8px !important;
-    padding: 15px !important;
-    }}
-    /* --- FILTROS DO STREAMLIT --- */
+    
     [data-testid="stSelectbox"],
     [data-testid="stMultiSelect"],
-    [data-testid="stTextInput"],
-    [data-testid="stNumberInput"],
-    [data-testid="stDateInput"] {{
+    [data-testid="stTextInput"] {{
     background: rgba(255, 255, 255, 0.05) !important;
     }}
+    
     input, select, textarea {{
     background: rgba(255, 255, 255, 0.08) !important;
     border: 1px solid rgba(157, 198, 58, 0.3) !important;
     color: #ffffff !important;
     }}
-    /* --- BOTÕES --- */
+    
     button {{
     background-color: #9DC63A !important;
     color: #0f1419 !important;
@@ -98,21 +89,22 @@ def apply_styles(file_path):
     border: none !important;
     border-radius: 8px !important;
     }}
+    
     button:hover {{
     background-color: #b5d855 !important;
     }}
     </style>
     """, unsafe_allow_html=True)
 
-# Aplicar estilos
+# Apply styles
 apply_styles('fundo.png')
 
-# --- 3. TÍTULO DA PÁGINA ---
+# --- 3. TITLE ---
 st.markdown('<h1><span class="cocal-green">Cocal</span> Treinamentos</h1>', unsafe_allow_html=True)
 st.markdown('---')
 
-# --- 4. SEÇÃO DE UPLOAD ---
-st.markdown('<h2>⚙️ Atualizar Base</h2>', unsafe_allow_html=True)
+# --- 4. UPLOAD SECTION ---
+st.markdown('<h2>Atualizar Base</h2>', unsafe_allow_html=True)
 st.markdown('Upload de nova base (Excel):')
 
 uploaded_file = st.file_uploader(
@@ -125,7 +117,6 @@ data = None
 
 if uploaded_file is not None:
     try:
-        # Ler o arquivo enviado
         data = pd.read_excel(uploaded_file, sheet_name=0)
         st.success("Board atualizado!")
         st.info(f"Registros carregados: {len(data)}")
@@ -137,21 +128,18 @@ if uploaded_file is not None:
         st.error(f"Erro ao carregar arquivo: {str(e)}")
         data = None
 
-# Usar dados da sessão se disponível
+# Use session data if available
 if 'dataframe' in st.session_state and st.session_state.get('data_loaded'):
     data = st.session_state['dataframe']
 
 if data is not None and len(data) > 0:
     st.markdown('---')
-    st.markdown('<h2>📊 Dashboard de Treinamentos</h2>', unsafe_allow_html=True)
+    st.markdown('<h2>Dashboard de Treinamentos</h2>', unsafe_allow_html=True)
     
-    # Preparar dados
     try:
-        # Garantir que as colunas existem
-        required_cols = ['Data', 'Instrutor', 'Evento', 'Participantes', 'Éfaz']
         data_clean = data.copy()
         
-        # Renomear colunas se necessário
+        # Rename columns if needed
         col_mapping = {}
         for col in data_clean.columns:
             col_lower = col.lower().strip()
@@ -163,25 +151,28 @@ if data is not None and len(data) > 0:
                 col_mapping[col] = 'Evento'
             elif 'participante' in col_lower:
                 col_mapping[col] = 'Participantes'
-            elif 'éfaz' in col_lower or 'efaz' in col_lower:
-                col_mapping[col] = 'Éfaz'
+            elif 'efaz' in col_lower:
+                col_mapping[col] = 'Efaz'
         
         data_clean = data_clean.rename(columns=col_mapping)
         
-        # MÉTRICAS
+        # METRICS
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total de Treinamentos", len(data_clean))
         with col2:
-            st.metric("Total de Participantes", int(data_clean['Participantes'].sum()) if 'Participantes' in data_clean.columns else 0)
+            total_part = int(data_clean['Participantes'].sum()) if 'Participantes' in data_clean.columns else 0
+            st.metric("Total de Participantes", total_part)
         with col3:
-            st.metric("Total de Instrutores", data_clean['Instrutor'].nunique() if 'Instrutor' in data_clean.columns else 0)
+            total_inst = data_clean['Instrutor'].nunique() if 'Instrutor' in data_clean.columns else 0
+            st.metric("Total de Instrutores", total_inst)
         with col4:
-            st.metric("Éfaz Finalizado", int(data_clean['Éfaz'].sum()) if 'Éfaz' in data_clean.columns else 0)
+            total_efaz = int(data_clean['Efaz'].sum()) if 'Efaz' in data_clean.columns else 0
+            st.metric("Efaz Finalizado", total_efaz)
         
         st.markdown('---')
         
-        # GRÁFICOS
+        # CHARTS
         col1, col2 = st.columns(2)
         
         with col1:
@@ -211,7 +202,7 @@ if data is not None and len(data) > 0:
         
         st.markdown('---')
         
-        # TABELA TRANSPARENTE
+        # DATA TABLE
         st.markdown('#### Detalhes de Treinamentos')
         st.dataframe(data_clean, use_container_width=True, height=400)
         
@@ -219,4 +210,4 @@ if data is not None and len(data) > 0:
         st.error(f"Erro ao processar dados: {str(e)}")
         st.dataframe(data, use_container_width=True)
 else:
-    st.info("\ud83d\udcc4 Carregue um arquivo Excel para visualizar o dashboard")
+    st.info("Carregue um arquivo Excel para visualizar o dashboard")
