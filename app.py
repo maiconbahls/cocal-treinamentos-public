@@ -127,26 +127,35 @@ apply_styles('Fundo.png')
 def load_data(file_source):
     if not file_source: return None
     try:
-        # Tenta ler como Excel (suporta .xls e .xlsx)
         df = pd.read_excel(file_source)
-        
-        # Limpeza de colunas (caso o Excel venha com espaços nos nomes)
         df.columns = [c.strip() for c in df.columns]
         
-        # Tratamento da data
+        # Colunas obrigatórias para o dashboard funcionar
+        cols_obrigatorias = ['Evento', 'Efetuado por', 'Pessoa', 'Matrícula']
+        faltando = [c for c in cols_obrigatorias if c not in df.columns]
+        
+        if faltando:
+            st.warning(f"⚠️ Atenção: As colunas {faltando} não foram encontradas no Excel. Verifique o arquivo.")
+            return None
+
         if 'Data e hora' in df.columns:
             df['Data e hora'] = pd.to_datetime(df['Data e hora'], format='%d/%m/%Y - %H:%M', errors='coerce')
             df['Data'] = df['Data e hora'].dt.date
+        else:
+            st.warning("⚠️ Coluna 'Data e hora' não encontrada. Filtros de data podem não funcionar.")
+            
         return df
     except Exception as e:
-        st.error(f"Erro ao carregar o arquivo: {e}")
+        st.error(f"Erro técnico ao ler o Excel: {e}")
         return None
 
-# Busca automática pelo arquivo no GitHub/Pasta
-DEFAULT_FILE = 'RelatorioDeEventos.xls'
+# Busca automática: pega QUALQUER arquivo .xls ou .xlsx, priorizando o mais recente
 if 'data_base' not in st.session_state:
-    if os.path.exists(DEFAULT_FILE):
-        st.session_state.data_base = load_data(DEFAULT_FILE)
+    arquivos_excel = [f for f in os.listdir('.') if f.lower().endswith(('.xls', '.xlsx'))]
+    if arquivos_excel:
+        # Ordena pelos arquivos mais recentes (data de modificação)
+        arquivos_excel.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+        st.session_state.data_base = load_data(arquivos_excel[0])
     else:
         st.session_state.data_base = None
 
