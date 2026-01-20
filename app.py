@@ -108,15 +108,15 @@ def apply_styles(file_path):
             border: none !important;
         }}
         /* ESCONDER HEADER E MENU */
-        [data-testid="stHeader"] {
+        [data-testid="stHeader"] {{
             display: none !important;
-        }
-        footer {
+        }}
+        footer {{
             display: none !important;
-        }
-        #MainMenu {
+        }}
+        #MainMenu {{
             visibility: hidden;
-        }
+        }}
         </style>
     """, unsafe_allow_html=True)
 
