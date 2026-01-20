@@ -107,6 +107,16 @@ def apply_styles(file_path):
             width: 100%;
             border: none !important;
         }}
+        /* ESCONDER HEADER E MENU */
+        [data-testid="stHeader"] {
+            display: none !important;
+        }
+        footer {
+            display: none !important;
+        }
+        #MainMenu {
+            visibility: hidden;
+        }
         </style>
     """, unsafe_allow_html=True)
 
