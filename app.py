@@ -141,8 +141,11 @@ def load_data(file_source):
         if 'Data e hora' in df.columns:
             df['Data e hora'] = pd.to_datetime(df['Data e hora'], format='%d/%m/%Y - %H:%M', errors='coerce')
             df['Data'] = df['Data e hora'].dt.date
+            df['Hora'] = df['Data e hora'].dt.strftime('%H:%M')
         else:
             st.warning("⚠️ Coluna 'Data e hora' não encontrada. Filtros de data podem não funcionar.")
+            df['Data'] = pd.to_datetime('today').date()
+            df['Hora'] = '--:--'
             
         return df
     except Exception as e:
@@ -159,8 +162,18 @@ if 'data_base' not in st.session_state:
     else:
         st.session_state.data_base = None
 
-# --- 4. TÍTULO ATUALIZADO (SEM '|') ---
-st.markdown('<h1><span class="cocal-green">Cocal</span> Treinamentos</h1>', unsafe_allow_html=True)
+# --- 4. CABEÇALHO ---
+col_t1, col_t2 = st.columns([3, 1])
+with col_t1:
+    st.markdown('<h1><span class="cocal-green">Cocal</span> Treinamentos</h1>', unsafe_allow_html=True)
+with col_t2:
+    agora = datetime.now()
+    st.markdown(f"""
+        <div style='text-align: right; padding-top: 10px;'>
+            <span style='font-size: 1.1rem; opacity: 0.8;'>{agora.strftime('%d/%m/%Y')}</span><br>
+            <span style='font-size: 1.8rem; font-weight: 700; color: #9DC63A;'>🕒 {agora.strftime('%H:%M')}</span>
+        </div>
+    """, unsafe_allow_html=True)
 
 if st.session_state.data_base is not None:
     df = st.session_state.data_base
@@ -239,7 +252,7 @@ if st.session_state.data_base is not None:
     st.markdown('<h4>Board de Participantes</h4>', unsafe_allow_html=True)
     
     st.dataframe(
-        df_f[['Matrícula', 'Pessoa', 'Evento', 'Efetuado por', 'Data']].sort_values('Data', ascending=False),
+        df_f[['Matrícula', 'Pessoa', 'Evento', 'Efetuado por', 'Data', 'Hora']].sort_values(['Data', 'Hora'], ascending=False),
         use_container_width=True, 
         height=800, 
         hide_index=True,
@@ -248,7 +261,8 @@ if st.session_state.data_base is not None:
             "Pessoa": st.column_config.TextColumn("Colaborador", width="large"),
             "Evento": st.column_config.TextColumn("Treinamento", width="large"),
             "Efetuado por": st.column_config.TextColumn("Instrutor", width="medium"),
-            "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY")
+            "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
+            "Hora": st.column_config.TextColumn("Horário", width="small")
         }
     )
 
